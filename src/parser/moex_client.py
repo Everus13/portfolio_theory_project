@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import time
 from typing import Optional
+from config import STOCKS, FUNDS, DB_PATH, PORTFOLIO_ASSETS, BENCHMARKS
 from src.storage.db_manager import save_prices, get_last_date
 
 def fetch_with_retry(url: str, params: dict, max_retries: int = 5, backoff_factor: float = 1.0) -> requests.Response:
@@ -62,6 +63,13 @@ def fetch_moex_history(ticker: str, is_index: bool = False, start_date: str = '2
         return pd.DataFrame()
         
     full_df = pd.concat(all_dfs, ignore_index=True)
+    
+    # Фильтруем по BOARDID для акций (TQBR) и фондов (TQTF), чтобы исключить другие режимы торгов и валюты (например, USD-доски)
+    if 'BOARDID' in full_df.columns:
+        if ticker in STOCKS:
+            full_df = full_df[full_df['BOARDID'] == 'TQBR']
+        elif ticker in FUNDS:
+            full_df = full_df[full_df['BOARDID'] == 'TQTF']
     
     # Маппинг колонок под схему БД
     rename_map = {
