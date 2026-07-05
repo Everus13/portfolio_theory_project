@@ -1,0 +1,19 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Данные и база данных
+data/*.db
+data/*.sqlite
+
+# Модели
+models/*
+!models/.gitkeep
+
+# Ноутбуки и IDE
+.ipynb_checkpoints/
+.idea/
+.vscode/
+.DS_Store
