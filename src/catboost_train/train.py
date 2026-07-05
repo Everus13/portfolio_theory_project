@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from catboost import CatBoostRegressor
-from sklearn.metrics import mean_absolute_error, r2_score
+from sklearn.metrics import mean_absolute_error, r2_score, mean_squared_error
 
 from config import DB_PATH, PORTFOLIO_ASSETS, BENCHMARKS, MODELS_DIR, TRAIN_TEST_SPLIT_DATE
 from src.features.features_generator import build_features_and_targets
@@ -48,12 +48,12 @@ def train_models():
         X_test, y_test = test_data[feature_cols], test_data['target']
         
         # 3. Инициализация и обучение CatBoost
-        # Мы используем Loss-функцию RMSE. 
-        # Параметр early_stopping_rounds поможет остановить обучение, если тест-метрика перестанет улучшаться.
+        # Подбираем более устойчивые параметры для зашумленных данных (маленькая глубина, низкий темп обучения, L2 регуляризация)
         model = CatBoostRegressor(
-            iterations=800,
-            learning_rate=0.02,
-            depth=5,
+            iterations=1500,
+            learning_rate=0.005,
+            depth=3,
+            l2_leaf_reg=5.0,
             loss_function='RMSE',
             random_seed=42,
             verbose=100  # Выводить логи каждые 100 итераций
@@ -70,9 +70,13 @@ def train_models():
         y_pred = model.predict(X_test)
         mae = mean_absolute_error(y_test, y_pred)
         r2 = r2_score(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = mse ** 0.5
         
         print(f"Метрики для {ticker} на тест-выборке:")
         print(f"  MAE: {mae:.5f}")
+        print(f"  MSE: {mse:.7f}")
+        print(f"  RMSE: {rmse:.5f}")
         print(f"  R^2: {r2:.5f}")
         
         # 5. Сохранение модели
