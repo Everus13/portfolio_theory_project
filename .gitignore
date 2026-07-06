@@ -17,3 +17,6 @@ models/*
 .idea/
 .vscode/
 .DS_Store
+
+# Отдельный репозиторий проекта трекера финансов
+finance_tracker/
