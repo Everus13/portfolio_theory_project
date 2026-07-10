@@ -20,3 +20,6 @@ models/*
 
 # Отдельный репозиторий проекта трекера финансов
 finance_tracker/
+
+# Временные файлы CatBoost
+catboost_info/
