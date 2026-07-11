@@ -21,6 +21,12 @@ def update_asset(db_path: str, ticker: str) -> None:
             print("[Warning] Не удалось получить данные по BTC-USD или курсу USD/RUB.")
             return
             
+        # Сохраняем также курс доллара в базу под тикером USD_RUB
+        usd_rub_df = rub_usd.copy()
+        usd_rub_df['ticker'] = 'USD_RUB'
+        save_prices(db_path, usd_rub_df)
+        print(f"Успешно сохранено {len(usd_rub_df)} строк для курса USD_RUB.")
+        
         btc_usd = btc_usd.set_index('date')
         rub_usd = rub_usd.set_index('date')
         

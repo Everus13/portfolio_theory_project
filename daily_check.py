@@ -36,6 +36,11 @@ def update_all_data():
             btc_usd = fetch_yahoo_history('BTC-USD', start_date)
             rub_usd = fetch_yahoo_history('RUB=X', start_date)
             if not btc_usd.empty and not rub_usd.empty:
+                # Сохраняем также курс доллара в базу под тикером USD_RUB
+                usd_rub_df = rub_usd.copy()
+                usd_rub_df['ticker'] = 'USD_RUB'
+                save_prices(DB_PATH, usd_rub_df)
+                
                 btc_usd = btc_usd.set_index('date')
                 rub_usd = rub_usd.set_index('date')
                 rub_usd_reindexed = rub_usd.reindex(btc_usd.index).ffill().bfill()

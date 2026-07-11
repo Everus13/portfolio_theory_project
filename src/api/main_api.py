@@ -110,6 +110,16 @@ def get_current_portfolio_info():
     rebalance_needed = time_trigger or drift_trigger
     key_rate = get_last_key_rate(DB_PATH, last_prices_date)
     
+    # Получаем последний курс USD/RUB из БД
+    usd_rate = 90.0
+    query_usd = "SELECT close FROM asset_prices WHERE ticker = 'USD_RUB' AND close IS NOT NULL ORDER BY date DESC LIMIT 1"
+    with get_connection(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute(query_usd)
+        row = cursor.fetchone()
+        if row:
+            usd_rate = row[0]
+            
     return {
         "holdings": holdings,
         "prices": current_prices,
@@ -122,7 +132,8 @@ def get_current_portfolio_info():
         "rebalance_needed": rebalance_needed,
         "rebalance_reasons": rebalance_reasons,
         "last_prices_date": last_prices_date,
-        "key_rate": key_rate
+        "key_rate": key_rate,
+        "usd_rate": usd_rate
     }
 
 @app.get("/api/portfolio")
@@ -285,3 +296,8 @@ def get_rebalance_history():
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run("main_api:app", host="127.0.0.1", port=8000, reload=True)
+

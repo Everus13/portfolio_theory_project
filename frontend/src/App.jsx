@@ -6,6 +6,7 @@ import {
   History, Wallet, Calculator, Home, BarChart3,
   ChevronDown, CircleDot, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
+import LandingPage from './LandingPage';
 
 const ASSET_COLORS = {
   TPAY: '#3b82f6',
@@ -29,6 +30,8 @@ const ASSET_LABELS = {
 };
 
 export default function App() {
+  const [view, setView]               = useState('landing');
+  const [currency, setCurrency]       = useState('RUB');
   const [data, setData]               = useState(null);
   const [loading, setLoading]         = useState(true);
   const [holdings, setHoldings]       = useState({});
@@ -58,20 +61,21 @@ export default function App() {
 
   useEffect(() => { fetchPortfolio(); fetchHistory(); }, []);
 
-  // Reactive deposit calculator
+  // Reactive deposit calculator with USD conversion
   useEffect(() => {
     const amt = parseFloat(deposit);
     if (isNaN(amt) || amt <= 0) { setDepositRes(null); return; }
     const t = setTimeout(async () => {
+      const rubAmount = currency === 'USD' ? amt * (data?.usd_rate ?? 90.0) : amt;
       const res = await fetch('/api/portfolio/calculate-deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amt })
+        body: JSON.stringify({ amount: rubAmount })
       });
       if (res.ok) setDepositRes(await res.json());
     }, 200);
     return () => clearTimeout(t);
-  }, [deposit]);
+  }, [deposit, currency, data]);
 
   const handleSave = async () => {
     setSaving(true); setSaved(false);
@@ -101,9 +105,13 @@ export default function App() {
     </div>
   );
 
+  if (view === 'landing') {
+    return <LandingPage onEnterConsole={() => setView('dashboard')} />;
+  }
+
   const { total_value, current_weights, target_weights,
     last_rebalance_date, trading_days_passed, rebalance_needed,
-    rebalance_reasons, key_rate, prices } = data;
+    rebalance_reasons, key_rate, prices, usd_rate } = data;
 
   const tickers = ['TPAY', 'TGLD', 'BTC', 'TMON'];
 
@@ -114,17 +122,72 @@ export default function App() {
     color: ASSET_COLORS[t]
   }));
 
+  // Currency helper formatting functions
+  const formatMoney = (val) => {
+    if (val === undefined || val === null) return '—';
+    if (currency === 'USD') {
+      const valUsd = val / usd_rate;
+      return `$${valUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `${val.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽`;
+  };
+
+  const formatPrice = (val, ticker) => {
+    if (val === undefined || val === null) return '—';
+    const valConverted = currency === 'USD' ? val / usd_rate : val;
+    const digits = ticker === 'BTC' ? (currency === 'USD' ? 2 : 0) : 2;
+    const formatted = valConverted.toLocaleString(currency === 'USD' ? 'en-US' : 'ru-RU', {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits
+    });
+    return currency === 'USD' ? `$${formatted}` : `${formatted} ₽`;
+  };
+
   return (
-    <div className="layout">
+    <div className="layout animate-in">
 
       {/* ─────────── SIDEBAR ─────────── */}
       <aside className="sidebar">
-        <div className="sidebar-header">
+        <div className="sidebar-header" style={{ cursor: 'pointer' }} onClick={() => setView('landing')}>
           <div className="sidebar-avatar">IP</div>
           <div>
             <div className="sidebar-user-name">Investor Panel</div>
           </div>
         </div>
+
+        {/* Currency Switcher Toggle */}
+        <div style={{ padding: '0 16px 16px', display: 'flex', gap: 8 }}>
+          <button 
+            className="btn" 
+            style={{ 
+              flex: 1, 
+              padding: '8px 10px', 
+              fontSize: '13px',
+              background: currency === 'RUB' ? 'var(--accent-blue)' : 'var(--bg-input)',
+              color: '#fff',
+              border: '1px solid var(--border-subtle)'
+            }}
+            onClick={() => setCurrency('RUB')}
+          >
+            RUB (₽)
+          </button>
+          <button 
+            className="btn" 
+            style={{ 
+              flex: 1, 
+              padding: '8px 10px', 
+              fontSize: '13px',
+              background: currency === 'USD' ? 'var(--accent-blue)' : 'var(--bg-input)',
+              color: '#fff',
+              border: '1px solid var(--border-subtle)'
+            }}
+            onClick={() => setCurrency('USD')}
+          >
+            USD ($)
+          </button>
+        </div>
+
+        <div className="sidebar-divider" />
 
         <div className="sidebar-section-label">Навигация</div>
         <nav className="sidebar-nav">
@@ -167,11 +230,11 @@ export default function App() {
 
         <div className="sidebar-divider" />
 
-        <div className="sidebar-section-label">Калькулятор пополнения</div>
+        <div className="sidebar-section-label">Пополнение ({currency === 'USD' ? '$' : '₽'})</div>
         <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div className="input-group">
-            <label className="input-label">Сумма (₽)</label>
-            <input className="input-field" type="number" placeholder="50 000"
+            <label className="input-label">Сумма</label>
+            <input className="input-field" type="number" placeholder={currency === 'USD' ? '500' : '50 000'}
               value={deposit} onChange={e => setDeposit(e.target.value)} />
           </div>
 
@@ -195,7 +258,6 @@ export default function App() {
           )}
         </div>
 
-
       </aside>
 
       {/* ─────────── MAIN ─────────── */}
@@ -206,10 +268,12 @@ export default function App() {
           trading_days_passed={trading_days_passed}
           rebalance_needed={rebalance_needed} rebalance_reasons={rebalance_reasons}
           pieData={pieData} tickers={tickers} prices={prices}
+          formatMoney={formatMoney} formatPrice={formatPrice}
         />}
         {activeTab === 'rebalance' && <RebalanceTab
           rebalancing={rebalancing} handleRebalance={handleRebalance}
           rebalResult={rebalResult} tickers={tickers}
+          formatMoney={formatMoney}
         />}
         {activeTab === 'history' && <HistoryTab history={history} />}
       </main>
@@ -221,7 +285,8 @@ export default function App() {
    HOME TAB
    ══════════════════════════════════════════════════ */
 function HomeTab({ total_value, current_weights, target_weights, key_rate,
-  trading_days_passed, rebalance_needed, rebalance_reasons, pieData, tickers, prices }) {
+  trading_days_passed, rebalance_needed, rebalance_reasons, pieData, tickers, prices,
+  formatMoney, formatPrice }) {
   return (
     <>
       <div className="page-header animate-in">
@@ -236,7 +301,7 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
         <MetricCard
           icon={<TrendingUp size={18} />}
           label="Стоимость портфеля"
-          value={`${total_value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽`}
+          value={formatMoney(total_value)}
           badge={rebalance_needed ? null : { text: 'OK', type: 'positive' }}
         />
         <MetricCard
@@ -343,7 +408,7 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
             <tr>
               <th>Актив</th>
               <th>Тикер</th>
-              <th>Цена (₽)</th>
+              <th>Цена</th>
               <th>Доля</th>
               <th style={{ width: 180 }}>Прогресс</th>
             </tr>
@@ -357,7 +422,7 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
                 </td>
                 <td style={{ color: 'var(--text-secondary)' }}>{t}</td>
                 <td style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                  {prices[t]?.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽
+                  {formatPrice(prices[t], t)}
                 </td>
                 <td>
                   <span className={`metric-badge ${current_weights[t] >= target_weights[t] ? 'positive' : 'neutral'}`}>
@@ -382,7 +447,7 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
 /* ══════════════════════════════════════════════════
    REBALANCE TAB
    ══════════════════════════════════════════════════ */
-function RebalanceTab({ rebalancing, handleRebalance, rebalResult, tickers }) {
+function RebalanceTab({ rebalancing, handleRebalance, rebalResult, tickers, formatMoney }) {
   return (
     <>
       <div className="page-header animate-in">
@@ -447,7 +512,7 @@ function RebalanceTab({ rebalancing, handleRebalance, rebalResult, tickers }) {
                     <th>Действие</th>
                     <th>Актив</th>
                     <th style={{ textAlign: 'right' }}>Лоты</th>
-                    <th style={{ textAlign: 'right' }}>Сумма (₽)</th>
+                    <th style={{ textAlign: 'right' }}>Сумма</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -459,7 +524,7 @@ function RebalanceTab({ rebalancing, handleRebalance, rebalResult, tickers }) {
                         {tr.delta_lots.toFixed(tr.ticker === 'BTC' ? 6 : 4)}
                       </td>
                       <td style={{ textAlign: 'right', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {tr.delta_rub.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽
+                        {formatMoney(tr.delta_rub)}
                       </td>
                     </tr>
                   ))}
