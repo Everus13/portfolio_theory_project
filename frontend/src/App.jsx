@@ -3,15 +3,22 @@ import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
 import {
   TrendingUp, Percent, Calendar, AlertTriangle, Save, RotateCw,
-  History, Wallet, Calculator, Home, BarChart3, Settings,
+  History, Wallet, Calculator, Home, BarChart3,
   ChevronDown, CircleDot, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 
 const ASSET_COLORS = {
-  TPAY: '#3b82f6',
+  TPAY: '#2563eb',
   TGLD: '#eab308',
   BTC:  '#f97316',
-  TMON: '#06d6a0'
+  TMON: '#10b981'
+};
+
+const ASSET_DOTS = {
+  TPAY: '#2563eb',
+  TGLD: '#eab308',
+  BTC:  '#f97316',
+  TMON: '#10b981'
 };
 
 const ASSET_LABELS = {
@@ -142,7 +149,7 @@ export default function App() {
           {tickers.map(t => (
             <div className="input-group" key={t}>
               <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: ASSET_COLORS[t], display: 'inline-block' }} />
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: ASSET_DOTS[t], display: 'inline-block' }} />
                 {t} — {ASSET_LABELS[t]}
               </label>
               <input className="input-field" type="number" step="any"
@@ -175,7 +182,7 @@ export default function App() {
                 return (
                   <div key={t} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
-                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ASSET_COLORS[t], display: 'inline-block' }} />
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ASSET_DOTS[t], display: 'inline-block' }} />
                       {t}
                     </span>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -188,11 +195,7 @@ export default function App() {
           )}
         </div>
 
-        <div className="sidebar-footer">
-          <button className="sidebar-item" style={{ opacity: 0.7 }}>
-            <Settings size={18} /> Настройки
-          </button>
-        </div>
+
       </aside>
 
       {/* ─────────── MAIN ─────────── */}
@@ -284,18 +287,20 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
           <div style={{ display: 'flex', justifyContent: 'center', flex: 1, alignItems: 'center' }}>
             <BarChart
               xAxis={[{ scaleType: 'band', data: tickers, 
-                tickLabelStyle: { fill: '#7a8ba7', fontSize: 12, fontFamily: 'Inter' } }]}
-              yAxis={[{ tickLabelStyle: { fill: '#4b5e7a', fontSize: 11 } }]}
+                tickLabelStyle: { fill: '#ffffff', fontSize: 12, fontFamily: 'Inter' } }]}
+              yAxis={[{ tickLabelStyle: { fill: '#ffffff', fontSize: 11 } }]}
               series={[
-                { data: tickers.map(t => +(current_weights[t] * 100).toFixed(1)), label: 'Текущие %', color: '#3b82f6' },
-                { data: tickers.map(t => +(target_weights[t] * 100).toFixed(1)),  label: 'Целевые %', color: '#06d6a0' }
+                { data: tickers.map(t => +(current_weights[t] * 100).toFixed(1)), label: 'Текущие %', color: '#2563eb' },
+                { data: tickers.map(t => +(target_weights[t] * 100).toFixed(1)),  label: 'Целевые %', color: '#10b981' }
               ]}
               width={560} height={280}
               sx={{
-                '.MuiChartsAxis-line': { stroke: 'rgba(255,255,255,0.06)' },
-                '.MuiChartsAxis-tick': { stroke: 'rgba(255,255,255,0.06)' },
+                '.MuiChartsAxis-line': { stroke: 'rgba(255,255,255,0.1)' },
+                '.MuiChartsAxis-tick': { stroke: 'rgba(255,255,255,0.1)' },
+                '.MuiChartsAxis-tickLabel tspan': { fill: '#ffffff !important' },
+                '.MuiChartsLegend-label': { fill: '#ffffff !important' },
+                'text': { fill: '#ffffff !important' },
               }}
-              slotProps={{ legend: { labelStyle: { fill: '#7a8ba7', fontSize: 12 } } }}
             />
           </div>
         </div>
@@ -310,10 +315,15 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
               <PieChart
                 series={[{
                   data: pieData, innerRadius: 60, outerRadius: 100,
-                  paddingAngle: 2, cornerRadius: 4,
+                  paddingAngle: 0, cornerRadius: 0,
                 }]}
                 width={300} height={240}
-                slotProps={{ legend: { labelStyle: { fill: '#7a8ba7', fontSize: 11 } } }}
+                sx={{
+                  '.MuiPieArc-root': { stroke: 'none !important', strokeWidth: '0 !important' },
+                  'path': { stroke: 'none !important' },
+                  'text': { fill: '#ffffff !important' },
+                  '.MuiChartsLegend-label': { fill: '#ffffff !important' },
+                }}
               />
             ) : (
               <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Внесите остатки</p>
@@ -342,7 +352,7 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
             {tickers.map(t => (
               <tr key={t}>
                 <td style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: ASSET_COLORS[t] }} />
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: ASSET_DOTS[t] }} />
                   <span style={{ fontWeight: 600 }}>{ASSET_LABELS[t]}</span>
                 </td>
                 <td style={{ color: 'var(--text-secondary)' }}>{t}</td>

@@ -615,3 +615,38 @@ body {
   align-items: center;
   background: var(--bg-base);
 }
+
+/* ═══════════════════════════════════════════
+   MUI CHARTS OVERRIDES FOR SLEEK DARK MODE
+   ═══════════════════════════════════════════ */
+
+/* Force all text in MUI Charts (legends, axes, tooltip labels, pie labels) to be white */
+.MuiChartsLegend-root text,
+.MuiChartsAxis-root text,
+.MuiChartsAxis-tickLabel text,
+.MuiChartsLegend-label,
+svg text,
+text {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+
+/* Force legend boxes to use white text */
+.MuiChartsLegend-label tspan {
+  fill: #ffffff !important;
+}
+
+/* Force axis ticks and lines to have subtle gray stroke instead of black */
+.MuiChartsAxis-line,
+.MuiChartsAxis-tick {
+  stroke: rgba(255, 255, 255, 0.15) !important;
+}
+
+/* Complete removal of white outlines on Pie chart slices */
+.MuiPieArc-root,
+.MuiPieArc-root path,
+path.MuiPieArc-root {
+  stroke: none !important;
+  stroke-width: 0 !important;
+}
+
