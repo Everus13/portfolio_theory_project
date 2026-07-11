@@ -1,603 +1,529 @@
 import React, { useState, useEffect } from 'react';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { 
-  Box, Typography, TextField, Button, Grid, CircularProgress, 
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, 
-  Paper, Alert, AlertTitle, Divider, InputAdornment 
-} from '@mui/material';
 import { PieChart } from '@mui/x-charts/PieChart';
 import { BarChart } from '@mui/x-charts/BarChart';
-import { 
-  TrendingUp, Percent, Calendar, AlertCircle, Save, 
-  RotateCw, History, ArrowRight, Wallet 
+import {
+  TrendingUp, Percent, Calendar, AlertTriangle, Save, RotateCw,
+  History, Wallet, Calculator, Home, BarChart3, Settings,
+  ChevronDown, CircleDot, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 
-const darkTheme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: { main: '#3b82f6' },      // Blue for TPAY
-    secondary: { main: '#10b981' },    // Green for TMON
-    warning: { main: '#eab308' },      // Gold for TGLD
-    error: { main: '#f97316' },        // Orange/Red for BTC
-    background: {
-      default: '#0b0d11',
-      paper: '#141a26',
-    },
-  },
-  typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", sans-serif',
-  },
-  components: {
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(255, 255, 255, 0.03)',
-          borderRadius: 8,
-        }
-      }
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: 'none',
-          fontWeight: 600,
-        }
-      }
-    }
-  }
-});
-
 const ASSET_COLORS = {
-  'TPAY': '#3b82f6',
-  'TGLD': '#eab308',
-  'BTC': '#f97316',
-  'TMON': '#10b981'
+  TPAY: '#3b82f6',
+  TGLD: '#eab308',
+  BTC:  '#f97316',
+  TMON: '#06d6a0'
 };
 
-const ASSET_NAMES_RU = {
-  'TPAY': 'Облигации (TPAY)',
-  'TGLD': 'Золото (TGLD)',
-  'BTC': 'Биткоин (BTC)',
-  'TMON': 'Ден. рынок (TMON)'
+const ASSET_LABELS = {
+  TPAY: 'Облигации',
+  TGLD: 'Золото',
+  BTC:  'Биткоин',
+  TMON: 'Ден. рынок'
 };
 
 export default function App() {
-  const [portfolioData, setPortfolioData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // holdings input form state
-  const [holdings, setHoldings] = useState({ TPAY: 0, TGLD: 0, BTC: 0, TMON: 0 });
-  const [savingHoldings, setSavingHoldings] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  // deposit calculator state
-  const [depositSum, setDepositSum] = useState("");
-  const [depositResult, setDepositResult] = useState(null);
-
-  // rebalance action state
+  const [data, setData]               = useState(null);
+  const [loading, setLoading]         = useState(true);
+  const [holdings, setHoldings]       = useState({});
+  const [saving, setSaving]           = useState(false);
+  const [saved, setSaved]             = useState(false);
+  const [deposit, setDeposit]         = useState('');
+  const [depositRes, setDepositRes]   = useState(null);
   const [rebalancing, setRebalancing] = useState(false);
-  const [rebalanceResult, setRebalanceResult] = useState(null);
-
-  // rebalance history state
-  const [history, setHistory] = useState([]);
+  const [rebalResult, setRebalResult] = useState(null);
+  const [history, setHistory]         = useState([]);
+  const [activeTab, setActiveTab]     = useState('home');
 
   const fetchPortfolio = async () => {
-    try {
-      const res = await fetch('/api/portfolio');
-      if (!res.ok) throw new Error('Не удалось загрузить данные портфеля.');
-      const data = await res.json();
-      setPortfolioData(data);
-      setHoldings(data.holdings);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch('/api/portfolio');
+    const d = await res.json();
+    setData(d);
+    setHoldings(d.holdings);
+    setLoading(false);
   };
 
   const fetchHistory = async () => {
     try {
       const res = await fetch('/api/portfolio/history');
-      if (res.ok) {
-        const data = await res.json();
-        setHistory(data);
-      }
-    } catch (err) {
-      console.error('Ошибка истории ребалансов:', err);
-    }
+      if (res.ok) setHistory(await res.json());
+    } catch {}
   };
 
-  useEffect(() => {
-    fetchPortfolio();
-    fetchHistory();
-  }, []);
+  useEffect(() => { fetchPortfolio(); fetchHistory(); }, []);
 
   // Reactive deposit calculator
   useEffect(() => {
-    const amount = parseFloat(depositSum);
-    if (isNaN(amount) || amount <= 0) {
-      setDepositResult(null);
-      return;
-    }
-
-    const delayDebounceFn = setTimeout(async () => {
-      try {
-        const res = await fetch('/api/portfolio/calculate-deposit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setDepositResult(data);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    }, 250);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [depositSum]);
-
-  const handleSaveHoldings = async () => {
-    setSavingHoldings(true);
-    setSaveSuccess(false);
-    try {
-      const res = await fetch('/api/portfolio/holdings', {
+    const amt = parseFloat(deposit);
+    if (isNaN(amt) || amt <= 0) { setDepositRes(null); return; }
+    const t = setTimeout(async () => {
+      const res = await fetch('/api/portfolio/calculate-deposit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ holdings })
+        body: JSON.stringify({ amount: amt })
       });
-      if (res.ok) {
-        const data = await res.json();
-        setPortfolioData(data);
-        setSaveSuccess(true);
-        setTimeout(() => setSaveSuccess(false), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingHoldings(false);
-    }
+      if (res.ok) setDepositRes(await res.json());
+    }, 200);
+    return () => clearTimeout(t);
+  }, [deposit]);
+
+  const handleSave = async () => {
+    setSaving(true); setSaved(false);
+    const res = await fetch('/api/portfolio/holdings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ holdings })
+    });
+    if (res.ok) { setData(await res.json()); setSaved(true); setTimeout(() => setSaved(false), 3000); }
+    setSaving(false);
   };
 
   const handleRebalance = async () => {
-    setRebalancing(true);
-    setRebalanceResult(null);
-    try {
-      const res = await fetch('/api/portfolio/rebalance', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        setRebalanceResult(data);
-        fetchPortfolio();
-        fetchHistory();
-      } else {
-        const errData = await res.json();
-        alert(`Ошибка ребалансировки: ${errData.detail || 'Внутренняя ошибка'}`);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setRebalancing(false);
+    setRebalancing(true); setRebalResult(null);
+    const res = await fetch('/api/portfolio/rebalance', { method: 'POST' });
+    if (res.ok) {
+      setRebalResult(await res.json());
+      fetchPortfolio();
+      fetchHistory();
     }
+    setRebalancing(false);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', width: '100vw', height: '100vh', justifyContent: 'center', alignItems: 'center', bgcolor: '#0b0d11' }}>
-        <CircularProgress size={60} />
-      </Box>
-    );
-  }
+  if (loading) return (
+    <div className="loading-screen">
+      <div className="spinner" />
+    </div>
+  );
 
-  if (error) {
-    return (
-      <Box sx={{ p: 4, width: '100vw', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', bgcolor: '#0b0d11' }}>
-        <Alert severity="error" sx={{ maxWidth: 500 }}>
-          <AlertTitle>Ошибка загрузки</AlertTitle>
-          {error}
-        </Alert>
-      </Box>
-    );
-  }
+  const { total_value, current_weights, target_weights,
+    last_rebalance_date, trading_days_passed, rebalance_needed,
+    rebalance_reasons, key_rate, prices } = data;
 
-  const {
-    total_value, current_weights, target_weights, 
-    last_rebalance_date, trading_days_passed, 
-    rebalance_needed, rebalance_reasons, key_rate
-  } = portfolioData;
+  const tickers = ['TPAY', 'TGLD', 'BTC', 'TMON'];
 
-  // Prepare Pie Chart Data
-  const pieData = Object.keys(current_weights).map((ticker, index) => ({
-    id: index,
-    value: parseFloat((current_weights[ticker] * 100).toFixed(2)),
-    label: `${ticker} (${(current_weights[ticker] * 100).toFixed(1)}%)`,
-    color: ASSET_COLORS[ticker]
+  const pieData = tickers.map((t, i) => ({
+    id: i,
+    value: +(current_weights[t] * 100).toFixed(2),
+    label: `${t} ${(current_weights[t] * 100).toFixed(1)}%`,
+    color: ASSET_COLORS[t]
   }));
 
-  // Prepare Bar Chart Data
-  const barTickers = ['TPAY', 'TGLD', 'BTC', 'TMON'];
-  const currentBarWeights = barTickers.map(t => parseFloat((current_weights[t] * 100).toFixed(1)));
-  const targetBarWeights = barTickers.map(t => parseFloat((target_weights[t] * 100).toFixed(1)));
-
   return (
-    <ThemeProvider theme={darkTheme}>
-      <CssBaseline />
-      <Box className="main-layout">
-        
-        {/* SIDEBAR */}
-        <Box className="glass-sidebar">
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 1 }}>
-            <Wallet style={{ color: '#3b82f6', width: 28, height: 28 }} />
-            <Typography variant="h6" sx={{ fontWeight: 700, letterSpacing: '-0.5px' }}>
-              Ваш портфель
-            </Typography>
-          </Box>
-          <Divider />
+    <div className="layout">
 
-          {/* Asset holdings inputs */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Количество лотов / паев
-            </Typography>
-            {Object.keys(holdings).map(ticker => (
-              <TextField
-                key={ticker}
-                label={ASSET_NAMES_RU[ticker]}
-                type="number"
-                size="small"
-                value={holdings[ticker]}
-                onChange={e => setHoldings({ ...holdings, [ticker]: parseFloat(e.target.value) || 0 })}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ASSET_COLORS[ticker] }} />
-                    </InputAdornment>
-                  )
-                }}
+      {/* ─────────── SIDEBAR ─────────── */}
+      <aside className="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-avatar">IP</div>
+          <div>
+            <div className="sidebar-user-name">Investor Panel</div>
+          </div>
+        </div>
+
+        <div className="sidebar-section-label">Навигация</div>
+        <nav className="sidebar-nav">
+          <button className={`sidebar-item ${activeTab === 'home' ? 'active' : ''}`}
+            onClick={() => setActiveTab('home')}>
+            <Home size={18} /> Обзор
+          </button>
+          <button className={`sidebar-item ${activeTab === 'rebalance' ? 'active' : ''}`}
+            onClick={() => setActiveTab('rebalance')}>
+            <BarChart3 size={18} /> Ребалансировка
+          </button>
+          <button className={`sidebar-item ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}>
+            <History size={18} /> История
+          </button>
+        </nav>
+
+        <div className="sidebar-divider" />
+
+        <div className="sidebar-section-label">Активы (лоты)</div>
+        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {tickers.map(t => (
+            <div className="input-group" key={t}>
+              <label className="input-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: ASSET_COLORS[t], display: 'inline-block' }} />
+                {t} — {ASSET_LABELS[t]}
+              </label>
+              <input className="input-field" type="number" step="any"
+                value={holdings[t] ?? 0}
+                onChange={e => setHoldings({ ...holdings, [t]: parseFloat(e.target.value) || 0 })}
               />
-            ))}
-            
-            <Button 
-              variant="contained" 
-              color="primary"
-              onClick={handleSaveHoldings}
-              disabled={savingHoldings}
-              startIcon={savingHoldings ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
-              sx={{ py: 1.2 }}
-            >
-              Сохранить баланс
-            </Button>
-            {saveSuccess && (
-              <Alert severity="success" sx={{ py: 0, px: 2 }}>Баланс успешно обновлен!</Alert>
-            )}
-          </Box>
-          
-          <Divider sx={{ my: 1 }} />
+            </div>
+          ))}
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}
+            style={{ width: '100%', marginTop: 4 }}>
+            <Save size={15} /> {saving ? 'Сохраняю...' : 'Сохранить баланс'}
+          </button>
+          {saved && <div className="alert alert-success" style={{ padding: '8px 14px', fontSize: 13 }}>Баланс обновлён!</div>}
+        </div>
 
-          {/* Deposit Calculator */}
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              Калькулятор пополнения
-            </Typography>
-            <TextField
-              label="Сумма пополнения"
-              type="number"
-              size="small"
-              value={depositSum}
-              onChange={e => setDepositSum(e.target.value)}
-              InputProps={{
-                endAdornment: <InputAdornment position="end">₽</InputAdornment>
+        <div className="sidebar-divider" />
+
+        <div className="sidebar-section-label">Калькулятор пополнения</div>
+        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="input-group">
+            <label className="input-label">Сумма (₽)</label>
+            <input className="input-field" type="number" placeholder="50 000"
+              value={deposit} onChange={e => setDeposit(e.target.value)} />
+          </div>
+
+          {depositRes && (
+            <div className="animate-in" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {tickers.map(t => {
+                const r = depositRes[t];
+                return (
+                  <div key={t} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)' }}>
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: ASSET_COLORS[t], display: 'inline-block' }} />
+                      {t}
+                    </span>
+                    <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {r.needed_lots.toFixed(t === 'BTC' ? 6 : 2)} шт
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="sidebar-footer">
+          <button className="sidebar-item" style={{ opacity: 0.7 }}>
+            <Settings size={18} /> Настройки
+          </button>
+        </div>
+      </aside>
+
+      {/* ─────────── MAIN ─────────── */}
+      <main className="main-content">
+        {activeTab === 'home' && <HomeTab
+          total_value={total_value} current_weights={current_weights}
+          target_weights={target_weights} key_rate={key_rate}
+          trading_days_passed={trading_days_passed}
+          rebalance_needed={rebalance_needed} rebalance_reasons={rebalance_reasons}
+          pieData={pieData} tickers={tickers} prices={prices}
+        />}
+        {activeTab === 'rebalance' && <RebalanceTab
+          rebalancing={rebalancing} handleRebalance={handleRebalance}
+          rebalResult={rebalResult} tickers={tickers}
+        />}
+        {activeTab === 'history' && <HistoryTab history={history} />}
+      </main>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   HOME TAB
+   ══════════════════════════════════════════════════ */
+function HomeTab({ total_value, current_weights, target_weights, key_rate,
+  trading_days_passed, rebalance_needed, rebalance_reasons, pieData, tickers, prices }) {
+  return (
+    <>
+      <div className="page-header animate-in">
+        <div>
+          <h1 className="page-title">Dashboard Overview</h1>
+          <p className="page-subtitle">Мониторинг портфеля и текущая аналитика активов</p>
+        </div>
+      </div>
+
+      {/* METRIC CARDS */}
+      <div className="metrics-grid stagger-children">
+        <MetricCard
+          icon={<TrendingUp size={18} />}
+          label="Стоимость портфеля"
+          value={`${total_value.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽`}
+          badge={rebalance_needed ? null : { text: 'OK', type: 'positive' }}
+        />
+        <MetricCard
+          icon={<Percent size={18} />}
+          label="Ставка ЦБ РФ"
+          value={`${key_rate.toFixed(1)}%`}
+          badge={{ text: 'Ключевая', type: 'neutral' }}
+        />
+        <MetricCard
+          icon={<Calendar size={18} />}
+          label="С ребалансировки"
+          value={`${trading_days_passed} дн.`}
+          badge={trading_days_passed >= 20
+            ? { text: 'Пора!', type: 'negative' }
+            : { text: `${20 - trading_days_passed} ост.`, type: 'positive' }}
+        />
+        <MetricCard
+          icon={<AlertTriangle size={18} />}
+          label="Статус портфеля"
+          value={rebalance_needed ? 'Требуется' : 'Баланс'}
+          badge={rebalance_needed
+            ? { text: 'Ребаланс', type: 'negative' }
+            : { text: 'В норме', type: 'positive' }}
+        />
+      </div>
+
+      {/* Rebalance Alert */}
+      {rebalance_needed && (
+        <div className="alert alert-warning animate-in">
+          <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+          <div>
+            <strong>Обнаружены отклонения:</strong>
+            {rebalance_reasons.map((r, i) => <div key={i} style={{ marginTop: 4 }}>• {r}</div>)}
+          </div>
+        </div>
+      )}
+
+      {/* CHARTS ROW */}
+      <div className="content-grid animate-in">
+        {/* Weights Overview (Bar Chart) */}
+        <div className="card">
+          <div className="card-header">
+            <div>
+              <div className="card-title"><BarChart3 size={18} /> Распределение весов</div>
+              <div className="card-subtitle">Текущие доли vs Целевые</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', flex: 1, alignItems: 'center' }}>
+            <BarChart
+              xAxis={[{ scaleType: 'band', data: tickers, 
+                tickLabelStyle: { fill: '#7a8ba7', fontSize: 12, fontFamily: 'Inter' } }]}
+              yAxis={[{ tickLabelStyle: { fill: '#4b5e7a', fontSize: 11 } }]}
+              series={[
+                { data: tickers.map(t => +(current_weights[t] * 100).toFixed(1)), label: 'Текущие %', color: '#3b82f6' },
+                { data: tickers.map(t => +(target_weights[t] * 100).toFixed(1)),  label: 'Целевые %', color: '#06d6a0' }
+              ]}
+              width={560} height={280}
+              sx={{
+                '.MuiChartsAxis-line': { stroke: 'rgba(255,255,255,0.06)' },
+                '.MuiChartsAxis-tick': { stroke: 'rgba(255,255,255,0.06)' },
               }}
+              slotProps={{ legend: { labelStyle: { fill: '#7a8ba7', fontSize: 12 } } }}
             />
+          </div>
+        </div>
 
-            {depositResult && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, p: 2, borderRadius: 2, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }} className="animate-fade-in">
-                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', display: 'block', mb: 0.5 }}>
-                  РЕКОМЕНДУЕМЫЕ ПОКУПКИ:
-                </Typography>
-                {Object.keys(depositResult).map(ticker => {
-                  const item = depositResult[ticker];
-                  return (
-                    <Box key={ticker} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: ASSET_COLORS[ticker] }} />
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{ticker}</Typography>
-                      </Box>
-                      <Box sx={{ textAlign: 'right' }}>
-                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                          {item.needed_lots.toFixed(t => ticker === 'BTC' ? 6 : 4)} {ticker === 'BTC' ? 'BTC' : 'паев'}
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          ~ {item.allocated_rub.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽
-                        </Typography>
-                      </Box>
-                    </Box>
-                  );
-                })}
-              </Box>
+        {/* Pie Chart */}
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title"><CircleDot size={18} /> Доли активов</div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', flex: 1, alignItems: 'center' }}>
+            {total_value > 0 ? (
+              <PieChart
+                series={[{
+                  data: pieData, innerRadius: 60, outerRadius: 100,
+                  paddingAngle: 2, cornerRadius: 4,
+                }]}
+                width={300} height={240}
+                slotProps={{ legend: { labelStyle: { fill: '#7a8ba7', fontSize: 11 } } }}
+              />
+            ) : (
+              <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Внесите остатки</p>
             )}
-          </Box>
+          </div>
+        </div>
+      </div>
 
-        </Box>
+      {/* PRICES TABLE */}
+      <div className="card animate-in">
+        <div className="card-header">
+          <div className="card-title"><Wallet size={18} /> Котировки активов</div>
+          <span className="card-badge">На сегодня</span>
+        </div>
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Актив</th>
+              <th>Тикер</th>
+              <th>Цена (₽)</th>
+              <th>Доля</th>
+              <th style={{ width: 180 }}>Прогресс</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickers.map(t => (
+              <tr key={t}>
+                <td style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: '50%', background: ASSET_COLORS[t] }} />
+                  <span style={{ fontWeight: 600 }}>{ASSET_LABELS[t]}</span>
+                </td>
+                <td style={{ color: 'var(--text-secondary)' }}>{t}</td>
+                <td style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                  {prices[t]?.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽
+                </td>
+                <td>
+                  <span className={`metric-badge ${current_weights[t] >= target_weights[t] ? 'positive' : 'neutral'}`}>
+                    {(current_weights[t] * 100).toFixed(1)}%
+                  </span>
+                </td>
+                <td>
+                  <div className="progress-bar-container">
+                    <div className="progress-bar-fill"
+                      style={{ width: `${Math.min(current_weights[t] * 200, 100)}%`, background: ASSET_COLORS[t] }} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
 
-        {/* MAIN CONTENT AREA */}
-        <Box className="main-content">
-          
-          {/* HEADER & METRIC CARDROW */}
-          <Box className="animate-fade-in">
-            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-1px', mb: 4 }}>
-              Кабинет инвестора: Управление портфелем
-            </Typography>
+/* ══════════════════════════════════════════════════
+   REBALANCE TAB
+   ══════════════════════════════════════════════════ */
+function RebalanceTab({ rebalancing, handleRebalance, rebalResult, tickers }) {
+  return (
+    <>
+      <div className="page-header animate-in">
+        <div>
+          <h1 className="page-title">Ребалансировка портфеля</h1>
+          <p className="page-subtitle">CatBoost + MPT Sortino Optimizer с Turnover Penalty</p>
+        </div>
+      </div>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={3}>
-                <Box className="glass-card" sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                  <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-                    <TrendingUp size={24} />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                      Стоимость портфеля
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                      {total_value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₽
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
+      <div className="card animate-in">
+        <div className="card-header">
+          <div>
+            <div className="card-title"><RotateCw size={18} /> Запуск ML-оптимизатора</div>
+            <div className="card-subtitle">
+              Модели прогнозируют доходность на 5 дней вперёд, затем рассчитываются веса для максимизации Sortino Ratio
+            </div>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={handleRebalance} disabled={rebalancing}
+          style={{ alignSelf: 'flex-start' }}>
+          <RotateCw size={15} className={rebalancing ? 'spinning' : ''} />
+          {rebalancing ? 'Расчёт...' : 'Выполнить ребалансировку'}
+        </button>
+      </div>
 
-              <Grid item xs={12} md={3}>
-                <Box className="glass-card" sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                  <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-                    <Percent size={24} />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                      Ставка ЦБ РФ
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                      {key_rate.toFixed(2)}%
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
+      {rebalResult && (
+        <>
+          <div className="alert alert-success animate-in">
+            <ArrowUpRight size={18} style={{ flexShrink: 0 }} />
+            <span><strong>Ребалансировка рассчитана</strong> на дату {rebalResult.rebalance_date}</span>
+          </div>
 
-              <Grid item xs={12} md={3}>
-                <Box className="glass-card" sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-                  <Box sx={{ p: 1.5, borderRadius: 3, bgcolor: 'rgba(234, 179, 8, 0.1)', color: '#eab308' }}>
-                    <Calendar size={24} />
-                  </Box>
-                  <Box>
-                    <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-                      С прошлой ребалансировки
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                      {trading_days_passed} торг. дн.
-                    </Typography>
-                  </Box>
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} md={3}>
-                <Box className="glass-card" sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                  {rebalance_needed ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#f97316' }}>
-                      <AlertCircle size={20} />
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-                          РЕБАЛАНСИРОВКА
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          Требуется по модели
-                        </Typography>
-                      </Box>
-                    </Box>
-                  ) : (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#10b981' }}>
-                      <AlertCircle size={20} />
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.1 }}>
-                          ПОРТФЕЛЬ СБАЛАНСИРОВАН
-                        </Typography>
-                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                          Отклонения в пределах нормы
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
-
-          {/* Alerts for Rebalancing Reasons */}
-          {rebalance_needed && (
-            <Alert severity="warning" sx={{ borderRadius: 3 }} className="animate-fade-in">
-              <AlertTitle sx={{ fontWeight: 700 }}>Необходима ребалансировка активов</AlertTitle>
-              Система обнаружила триггерные отклонения в портфеле:
-              <ul>
-                {rebalance_reasons.map((reason, idx) => (
-                  <li key={idx} style={{ fontWeight: 600 }}>{reason}</li>
+          <div className="content-grid-equal animate-in">
+            {/* New Weights Card */}
+            <div className="card">
+              <div className="card-header">
+                <div className="card-title">🎯 Новые целевые веса</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {tickers.map(t => (
+                  <div key={t} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 500 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: ASSET_COLORS[t] }} />
+                      {t}
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent-cyan)' }}>
+                      {(rebalResult.target_weights[t] * 100).toFixed(1)}%
+                    </span>
+                  </div>
                 ))}
-              </ul>
-            </Alert>
-          )}
+              </div>
+            </div>
 
-          {/* CHARTS CONTAINER */}
-          <Box className="animate-fade-in">
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={5}>
-                <Box className="glass-card" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: 360 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 3, alignSelf: 'flex-start' }}>
-                    Текущее распределение долей
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, width: '100%' }}>
-                    {total_value > 0 ? (
-                      <PieChart
-                        series={[
-                          {
-                            data: pieData,
-                            innerRadius: 75,
-                            outerRadius: 110,
-                            paddingAngle: 2,
-                            cornerRadius: 4,
-                          },
-                        ]}
-                        width={350}
-                        height={240}
-                        legend={{ hidden: true }}
-                      />
-                    ) : (
-                      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                        Внесите остатки, чтобы увидеть график
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
-              </Grid>
+            {/* Trades Card */}
+            <div className="card">
+              <div className="card-header">
+                <div className="card-title">📋 Рекомендуемые сделки</div>
+              </div>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Действие</th>
+                    <th>Актив</th>
+                    <th style={{ textAlign: 'right' }}>Лоты</th>
+                    <th style={{ textAlign: 'right' }}>Сумма (₽)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rebalResult.recommended_trades.map((tr, i) => (
+                    <tr key={i}>
+                      <td><span className={`trade-tag ${tr.action === 'КУПИТЬ' ? 'buy' : 'sell'}`}>{tr.action}</span></td>
+                      <td style={{ fontWeight: 600 }}>{tr.ticker}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                        {tr.delta_lots.toFixed(tr.ticker === 'BTC' ? 6 : 4)}
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                        {tr.delta_rub.toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  );
+}
 
-              <Grid item xs={12} md={7}>
-                <Box className="glass-card" sx={{ minHeight: 360, display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1 }}>
-                    Текущие веса в сравнении с целевыми
-                  </Typography>
-                  <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flex: 1, width: '100%', overflow: 'hidden' }}>
-                    <BarChart
-                      xAxis={[{ scaleType: 'band', data: barTickers }]}
-                      series={[
-                        { data: currentBarWeights, label: 'Текущие веса (%)', color: '#3b82f6' },
-                        { data: targetBarWeights, label: 'Целевые веса (%)', color: '#10b981' }
-                      ]}
-                      width={520}
-                      height={260}
-                      legend={{ labelStyle: { fontSize: 11 } }}
-                    />
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
+/* ══════════════════════════════════════════════════
+   HISTORY TAB
+   ══════════════════════════════════════════════════ */
+function HistoryTab({ history }) {
+  const tickers = ['TPAY', 'TGLD', 'BTC', 'TMON'];
+  return (
+    <>
+      <div className="page-header animate-in">
+        <div>
+          <h1 className="page-title">История ребалансировок</h1>
+          <p className="page-subtitle">Лог всех изменений целевых весов портфеля</p>
+        </div>
+      </div>
 
-          {/* REBALANCE ACTION PANELS */}
-          <Box className="glass-card animate-fade-in">
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              Ребалансировка портфеля по модели CatBoost + MPT
-            </Typography>
-            <Typography variant="body2" sx={{ color: 'text.secondary', mb: 3 }}>
-              При нажатии кнопки система запустит обученные модели CatBoost для прогнозирования доходностей каждого инструмента на следующую неделю, рассчитает недельный ковариационный риск и сгенерирует оптимальные веса по модели Sortino с учетом Turnover Penalty.
-            </Typography>
+      <div className="card animate-in">
+        {history.length === 0 ? (
+          <p style={{ color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>
+            Ребалансировок ещё не проводилось
+          </p>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                {tickers.map(t => <th key={t} style={{ textAlign: 'right' }}>{t}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((row, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 600 }}>{row.date}</td>
+                  {tickers.map(t => (
+                    <td key={t} style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                      <span className="metric-badge neutral">
+                        {(row.weights[t] * 100).toFixed(1)}%
+                      </span>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
+  );
+}
 
-            <Button 
-              variant="contained" 
-              color="secondary"
-              onClick={handleRebalance}
-              disabled={rebalancing}
-              startIcon={rebalancing ? <CircularProgress size={16} color="inherit" /> : <RotateCw size={16} />}
-              sx={{ px: 3, py: 1.5 }}
-            >
-              Выполнить ребалансировку по модели
-            </Button>
-
-            {rebalanceResult && (
-              <Box sx={{ mt: 4 }} className="animate-fade-in">
-                <Alert severity="success" sx={{ mb: 3 }}>
-                  <AlertTitle sx={{ fontWeight: 700 }}>Ребалансировка успешно рассчитана на дату {rebalanceResult.rebalance_date}!</AlertTitle>
-                </Alert>
-
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: 'text.secondary' }}>
-                        🎯 Новые целевые веса:
-                      </Typography>
-                      {Object.keys(rebalanceResult.target_weights).map(ticker => (
-                        <Box key={ticker} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
-                          <Typography variant="body2" sx={{ fontWeight: 600 }}>{ticker}</Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 700, color: '#10b981' }}>
-                            {(rebalanceResult.target_weights[ticker] * 100).toFixed(2)}%
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <Box sx={{ p: 2.5, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 2, color: 'text.secondary' }}>
-                        📋 Сделки для выполнения на бирже:
-                      </Typography>
-                      {rebalanceResult.recommended_trades.map((trade, idx) => (
-                        <Box key={idx} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Box sx={{ 
-                              px: 1, py: 0.25, borderRadius: 1.5, fontSize: 11, fontWeight: 700,
-                              bgcolor: trade.action === 'КУПИТЬ' ? 'rgba(16,185,129,0.1)' : 'rgba(249,115,22,0.1)',
-                              color: trade.action === 'КУПИТЬ' ? '#10b981' : '#f97316'
-                            }}>
-                              {trade.action}
-                            </Box>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{trade.ticker}</Typography>
-                          </Box>
-                          <Box sx={{ textAlign: 'right' }}>
-                            <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                              ~ {trade.delta_lots.toFixed(trade.ticker === 'BTC' ? 6 : 4)} лотов
-                            </Typography>
-                            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                              на {trade.delta_rub.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} ₽
-                            </Typography>
-                          </Box>
-                        </Box>
-                      ))}
-                    </Box>
-                  </Grid>
-                </Grid>
-              </Box>
-            )}
-          </Box>
-
-          {/* HISTORY LOG PANEL */}
-          {history.length > 0 && (
-            <Box className="glass-card animate-fade-in">
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
-                <History style={{ color: '#3b82f6', width: 22, height: 22 }} />
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  История ребалансировок
-                </Typography>
-              </Box>
-
-              <TableContainer component={Paper} sx={{ bgcolor: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: 2 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: 'rgba(255,255,255,0.02)' }}>
-                      <TableCell sx={{ fontWeight: 700 }}>Дата</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>TPAY</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>TGLD</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>BTC</TableCell>
-                      <TableCell align="right" sx={{ fontWeight: 700 }}>TMON</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {history.map((row, idx) => (
-                      <TableRow key={idx} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-                        <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>{row.date}</TableCell>
-                        <TableCell align="right">{(row.weights.TPAY * 100).toFixed(1)}%</TableCell>
-                        <TableCell align="right">{(row.weights.TGLD * 100).toFixed(1)}%</TableCell>
-                        <TableCell align="right">{(row.weights.BTC * 100).toFixed(1)}%</TableCell>
-                        <TableCell align="right">{(row.weights.TMON * 100).toFixed(1)}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Box>
-          )}
-
-        </Box>
-      </Box>
-    </ThemeProvider>
+/* ══════════════════════════════════════════════════
+   SMALL COMPONENTS
+   ══════════════════════════════════════════════════ */
+function MetricCard({ icon, label, value, badge }) {
+  return (
+    <div className="metric-card animate-in-scale">
+      <div className="metric-card-header">
+        <span className="metric-card-label">{icon} {label}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+        <span className="metric-card-value">{value}</span>
+        {badge && <span className={`metric-badge ${badge.type}`}>{badge.text}</span>}
+      </div>
+    </div>
   );
 }
