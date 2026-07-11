@@ -632,6 +632,8 @@ svg tspan,
 text {
   fill: #ffffff !important;
   color: #ffffff !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-weight: 500 !important;
 }
 
 /* Force legend boxes to use white text */
