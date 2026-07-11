@@ -8,17 +8,17 @@ import {
 } from 'lucide-react';
 
 const ASSET_COLORS = {
-  TPAY: '#2563eb',
+  TPAY: '#3b82f6',
   TGLD: '#eab308',
   BTC:  '#f97316',
-  TMON: '#10b981'
+  TMON: '#06d6a0'
 };
 
 const ASSET_DOTS = {
-  TPAY: '#2563eb',
+  TPAY: '#3b82f6',
   TGLD: '#eab308',
   BTC:  '#f97316',
-  TMON: '#10b981'
+  TMON: '#06d6a0'
 };
 
 const ASSET_LABELS = {
@@ -290,8 +290,8 @@ function HomeTab({ total_value, current_weights, target_weights, key_rate,
                 tickLabelStyle: { fill: '#ffffff', fontSize: 12, fontFamily: 'Inter' } }]}
               yAxis={[{ tickLabelStyle: { fill: '#ffffff', fontSize: 11 } }]}
               series={[
-                { data: tickers.map(t => +(current_weights[t] * 100).toFixed(1)), label: 'Текущие %', color: '#2563eb' },
-                { data: tickers.map(t => +(target_weights[t] * 100).toFixed(1)),  label: 'Целевые %', color: '#10b981' }
+                { data: tickers.map(t => +(current_weights[t] * 100).toFixed(1)), label: 'Текущие %', color: '#3b82f6' },
+                { data: tickers.map(t => +(target_weights[t] * 100).toFixed(1)),  label: 'Целевые %', color: '#06d6a0' }
               ]}
               width={560} height={280}
               sx={{

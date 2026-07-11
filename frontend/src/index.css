@@ -621,11 +621,14 @@ body {
    ═══════════════════════════════════════════ */
 
 /* Force all text in MUI Charts (legends, axes, tooltip labels, pie labels) to be white */
-.MuiChartsLegend-root text,
-.MuiChartsAxis-root text,
-.MuiChartsAxis-tickLabel text,
-.MuiChartsLegend-label,
 svg text,
+svg text tspan,
+svg tspan,
+.MuiChartsLegend-root text,
+.MuiChartsLegend-label,
+.MuiChartsLegend-label tspan,
+.MuiChartsAxis-tickLabel tspan,
+.MuiChartsAxis-tickLabel text,
 text {
   fill: #ffffff !important;
   color: #ffffff !important;
@@ -645,8 +648,20 @@ text {
 /* Complete removal of white outlines on Pie chart slices */
 .MuiPieArc-root,
 .MuiPieArc-root path,
-path.MuiPieArc-root {
+path.MuiPieArc-root,
+g.MuiPieSeries-root path,
+svg.MuiPieChart-root path,
+.MuiPieChart-root path,
+path {
   stroke: none !important;
   stroke-width: 0 !important;
 }
+
+/* Restore border/line strokes for bar charts and grid lines so they don't get hidden by the generic path override */
+.MuiChartsAxis-line,
+.MuiChartsAxis-tick,
+line {
+  stroke: rgba(255, 255, 255, 0.15) !important;
+}
+
 
