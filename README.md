@@ -51,7 +51,6 @@ Portfolio_theory_project/
 ├── config.py              # Конфигурация тикеров, лимитов и путей
 ├── update_data.py         # Скрипт инициализации и инкрементального обновления БД
 ├── daily_check.py         # Фоновый ежедневный скрипт ребалансировки (CLI)
-├── dashboard.py           # Старый Streamlit-дашборд (Legacy)
 ├── portfolio_state.json   # Текущие остатки активов инвестора (паи/лоты)
 ├── requirements.txt       # Зависимости проекта (Python)
 └── README.md              # Описание проекта
