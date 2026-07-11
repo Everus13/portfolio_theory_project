@@ -92,6 +92,31 @@ if st.sidebar.button("💾 Сохранить изменения баланса"
     st.sidebar.success("Остатки портфеля сохранены!")
     st.rerun()
 
+# 2.1 Калькулятор пополнения
+st.sidebar.markdown("---")
+st.sidebar.header("📥 Калькулятор пополнения")
+deposit_sum = st.sidebar.number_input(
+    "Сумма пополнения (₽)",
+    min_value=0.0,
+    value=0.0,
+    step=1000.0,
+    format="%.2f"
+)
+
+if deposit_sum > 0.0:
+    st.sidebar.subheader("🛒 Что купить на пополнение:")
+    _, target_weights = get_last_rebalance_info()
+    
+    for t in PORTFOLIO_ASSETS:
+        weight = target_weights.get(t, 0.25)
+        allocated_rub = deposit_sum * weight
+        needed_lots = allocated_rub / current_prices[t]
+        
+        desc = "паев" if t != 'BTC' else "BTC"
+        st.sidebar.write(f"**{t}** ({weight*100:.1f}%):")
+        st.sidebar.write(f"  • {needed_lots:,.4f} {desc} (~ {allocated_rub:,.2f} ₽)")
+
+
 # 3. Расчет текущих показателей
 portfolio_values = {t: new_holdings[t] * current_prices[t] for t in PORTFOLIO_ASSETS}
 total_val = sum(portfolio_values.values())
